@@ -17,6 +17,7 @@ const $ = (id) => document.getElementById(id);
 let estado = null;
 let imagen = null;          // último cuadro de video (ImageBitmap/Image)
 let urlImagen = null;
+let controlMarioneta = false;   // true cuando esta página mueve a la persona sintética
 const medidoHist = [];      // [t, V] de la curva MEDIDA (reproducción)
 
 // ------------------------------------------------------------------ conexión
@@ -37,7 +38,7 @@ function conectar() {
         while (medidoHist.length && medidoHist[0][0] < estado.t - 40) medidoHist.shift();
       }
       requestAnimationFrame(dibujarTodo);
-    } else {
+    } else if (!controlMarioneta) {   // con la marioneta se dibuja la escena local, más bonita
       const url = URL.createObjectURL(ev.data);
       const img = new Image();
       img.onload = () => { if (urlImagen) URL.revokeObjectURL(urlImagen); urlImagen = url; imagen = img; };
@@ -328,3 +329,46 @@ fetch(`/api/estado?t=${encodeURIComponent(TOKEN)}`).then((r) => r.json()).then((
   if (e.wifi) $("in-banda").value = e.wifi.banda_ghz;
 });
 conectar();
+
+// ------------------------------------------------------------------ marioneta (modo --sintetico): mover a la persona con el teclado
+let marioneta = null;
+const lienzoMarioneta = document.createElement("canvas"); lienzoMarioneta.width = 1280; lienzoMarioneta.height = 720;
+async function prepararMarioneta() {
+  const { Marioneta, ACCIONES } = await import("/static/marioneta.js");
+  marioneta = new Marioneta({ estatura: estado.estatura_m || 1.7 });
+  $("mando").classList.remove("oculto");
+  const tomar = () => {
+    if (!controlMarioneta) { controlMarioneta = true; $("mando-titulo").textContent = "🎮 Estás moviendo a la persona (teclado o botones)"; }
+  };
+  for (const a of ACCIONES) {
+    const b = document.createElement("button");
+    b.className = "tecla"; b.dataset.accion = a.id;
+    b.innerHTML = `<kbd>${a.etiqueta}</kbd><span class="nom">${a.nombre}</span><span class="det">detecta: ${a.detecta}</span>`;
+    if (a.mantener) {
+      b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); tomar(); marioneta.presionar(a.id); });
+      for (const n of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(n, () => marioneta.soltar(a.id));
+    } else b.addEventListener("click", () => { tomar(); marioneta.presionar(a.id); });
+    $("mando-botones").appendChild(b);
+  }
+  const enCampo = (ev) => ["INPUT", "SELECT", "TEXTAREA"].includes(ev.target.tagName);
+  window.addEventListener("keydown", (ev) => {
+    if (enCampo(ev)) return;
+    const id = marioneta.teclaAAccion(ev.key); if (!id) return;
+    ev.preventDefault(); if (ev.repeat) return;
+    tomar(); marioneta.presionar(id);
+  });
+  window.addEventListener("keyup", (ev) => { const id = marioneta.teclaAAccion(ev.key); if (id) marioneta.soltar(id); });
+  window.addEventListener("blur", () => ["izquierda", "derecha", "correr", "agacharse"].forEach((a) => marioneta.soltar(a)));
+  let tPrev = performance.now();
+  setInterval(() => {                         // ~30 veces por segundo: mover, enviar los puntos y dibujar
+    if (!controlMarioneta) return;
+    const ahora = performance.now(), d = marioneta.actualizar((ahora - tPrev) / 1000); tPrev = ahora;
+    fetch(`/api/marioneta?t=${encodeURIComponent(TOKEN)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(d) });
+    marioneta.dibujar(lienzoMarioneta.getContext("2d")); imagen = lienzoMarioneta;
+    const activa = new Set([...marioneta.teclas, marioneta.ejercicio, marioneta.rutina ? "rutina" : null]);
+    document.querySelectorAll(".tecla").forEach((b) => b.classList.toggle("activa", activa.has(b.dataset.accion)));
+  }, 33);
+}
+const esperarSintetico = setInterval(() => {
+  if (estado && estado.fuente && estado.fuente.tipo === "sintetico") { clearInterval(esperarSintetico); prepararMarioneta(); }
+}, 300);

@@ -31,6 +31,32 @@ propio celular, con su cámara. No necesita estar en la misma red Wi-Fi que tu l
 La primera visita descarga los modelos (~40 MB con calidad "Rápida", ~75 MB con "Precisa"). Usa Wi-Fi, no datos
 móviles.
 
+## 🎮 Simulador: mueve tú a la persona
+
+Sin cámara ("Probar sin cámara" en la web, o `python app.py --sintetico`) aparece una persona en una habitación
+(con silla y colchón) que puedes **mover con el teclado** o, en el celular, con los **botones táctiles** que aparecen
+debajo del video. Empieza haciendo una rutina automática; al pulsar cualquier tecla tomas el control.
+
+| Tecla | Acción | AURA debería detectar |
+|---|---|---|
+| ← → (mantener) | Caminar | `caminando` |
+| Shift + ← → | Correr | `caminando` |
+| ↑ o Espacio | Saltar (vuelo de 0.45 s → ~25 cm) | `saltando` + altura del salto |
+| ↓ (mantener) | Agacharse | `sentado` / `incierto` |
+| S | Sentarse en la silla / levantarse | `sentado` |
+| C | Caerse (caída libre sobre el colchón) | **POSIBLE CAÍDA** y luego "sigue en el suelo tras 30 s" |
+| A | Acostarse despacio | `en_el_suelo` (**no** es una caída) |
+| L | Levantarse del suelo | `de_pie` |
+| E | Ejercicio: sentadillas (activar/desactivar) | alterna `de_pie` ↔ `sentado` |
+| J | Ejercicio: saltos de tijera (activar/desactivar) | `saltando` |
+| R | Rutina automática | todo lo anterior |
+
+La persona genera los mismos 17 puntos clave que daría la cámara (con un poco de ruido), así que recorre todo el
+sistema real: seguimiento, One Euro, reglas, alertas y Wi-Fi virtual. Sus movimientos siguen la física (caída libre
+de la cadera, salto balístico). Hay tests que comprueban que cada tecla produce la detección esperada
+(`web/tests/marioneta.test.mjs`). Ideas para la clase: compara **C** (caída) con **A** (acostarse despacio); baja el
+contraste del cuerpo a 0 mientras camina y mira cómo V se queda en ~5.
+
 ## ▶️ Ejecutar la app de escritorio desde GitHub
 
 **En tu laptop (para la demostración con el público), Windows:**
@@ -172,7 +198,7 @@ python app.py --demo mi_video.mp4  # MODO DEMO: un video pregrabado en vez de la
 ```
 
 ```bash
-python app.py --sintetico          # sin cámara ni modelos: una persona sintética (respaldo extremo)
+python app.py --sintetico          # sin cámara ni modelos: persona sintética que mueves con el teclado
 ```
 
 ```bash
@@ -577,7 +603,7 @@ python -m pytest -q
 ```
 
 ```bash
-node --test web/tests/equivalencia.test.mjs   # la versión web da lo mismo que la de Python
+node --test web/tests/equivalencia.test.mjs web/tests/marioneta.test.mjs   # web = Python; teclas → detecciones
 ```
 
 Si cambias `config.yaml` o `aura/ui/static/app.js`, regenera los datos de la versión web con

@@ -3,22 +3,18 @@ import { MotorWeb } from "./motor.js";
 import { EstimadorPoseWeb } from "./pose.js";
 import { fijarEstado, dibujarTodo, medidoHist } from "./dibujo.js";
 import { generarReporte } from "./reporte.js";
+import { Marioneta, ACCIONES } from "./marioneta.js";
 
 const $ = (id) => document.getElementById(id);
 const video = $("video");
 const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-let cfg = null, motor = null, imagen = null, estimador = null, corriendo = false, urlReporte = null;
+let cfg = null, motor = null, imagen = null, estimador = null, corriendo = false, urlReporte = null, marioneta = null;
+const lienzoMarioneta = document.createElement("canvas"); lienzoMarioneta.width = 1280; lienzoMarioneta.height = 720;
 $("in-modelo").value = esMovil ? "rapido" : "preciso";
 $("in-facing").value = esMovil ? "environment" : "user";
 
 const progreso = (t) => { $("progreso").textContent = t; };
 const msg = (t) => { $("msg").textContent = t || ""; };
-
-function fondoSintetico() {                    // fondo gris con el suelo (la figura la dibuja el panel de video)
-  const cv = document.createElement("canvas"); cv.width = 1280; cv.height = 720;
-  const c = cv.getContext("2d"); c.fillStyle = "#c8c8c8"; c.fillRect(0, 0, 1280, 720); c.fillStyle = "#96a0aa"; c.fillRect(0, 650, 1280, 70);
-  return cv;
-}
 
 async function abrirCamara(facing) {
   if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop());
@@ -46,10 +42,13 @@ async function iniciar(tipo, archivo = null) {
       else { video.srcObject = null; video.src = URL.createObjectURL(archivo); video.loop = true; await video.play(); }
       imagen = video;
     } else {
-      progreso("Cargando la persona sintética…");
-      fuente.rutina = await (await fetch("datos/rutina_sintetica.json")).json();
-      imagen = fondoSintetico();
+      marioneta = new Marioneta({ estatura: cfg.persona.estatura_m });
+      marioneta.presionar("rutina");                 // empieza sola; cualquier tecla toma el control
+      fuente.marioneta = marioneta;
+      imagen = lienzoMarioneta;
+      if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop());
     }
+    $("mando").classList.toggle("oculto", tipo !== "sintetico");
     if (motor) motor.detener();
     motor = new MotorWeb(cfg, rapido ? { detectarCadaS: 1.5, maxPersonas: 1, poseOtrosCada: 2 } : { detectarCadaS: 0.6, maxPersonas: 2, poseOtrosCada: 2 });
     motor.iniciar(fuente);
@@ -68,6 +67,11 @@ function bucle() {
     if (e.medido && e.medido.V !== null) {
       medidoHist.push([e.t, e.medido.V]);
       while (medidoHist.length && medidoHist[0][0] < e.t - 40) medidoHist.shift();
+    }
+    if (marioneta && imagen === lienzoMarioneta) {
+      marioneta.dibujar(lienzoMarioneta.getContext("2d"));
+      const activa = new Set([...marioneta.teclas, marioneta.ejercicio, marioneta.rutina ? "rutina" : null]);
+      document.querySelectorAll(".tecla").forEach((b) => b.classList.toggle("activa", activa.has(b.dataset.accion)));
     }
     fijarEstado(e, imagen);
     dibujarTodo();
@@ -90,7 +94,7 @@ function descargar(nombre, contenido, tipo) {
 $("bt-ini-camara").onclick = () => iniciar("camara");
 $("bt-ini-sint").onclick = () => iniciar("sintetico");
 $("in-video").onchange = () => { const f = $("in-video").files[0]; if (f) iniciar("video", f); };
-$("bt-salir").onclick = () => { if (motor) motor.detener(); motor = null; if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop()); $("inicio").classList.remove("oculto"); };
+$("bt-salir").onclick = () => { if (motor) motor.detener(); motor = null; marioneta = null; if (video.srcObject) video.srcObject.getTracks().forEach((t) => t.stop()); $("inicio").classList.remove("oculto"); };
 
 // ---------------------------------------------------------------- controles (mismos que la app de escritorio)
 $("cv-video").addEventListener("click", (ev) => {
@@ -131,3 +135,28 @@ $("bt-qr").onclick = () => {
   $("url-qr").textContent = url; $("modal-qr").classList.remove("oculto");
 };
 $("bt-cerrar-qr").onclick = () => $("modal-qr").classList.add("oculto");
+
+// ---------------------------------------------------------------- mando de la marioneta (teclado + botones táctiles)
+for (const a of ACCIONES) {
+  const b = document.createElement("button");
+  b.className = "tecla"; b.dataset.accion = a.id;
+  b.innerHTML = `<kbd>${a.etiqueta}</kbd><span class="nom">${a.nombre}</span><span class="det">detecta: ${a.detecta}</span>`;
+  if (a.mantener) {
+    b.addEventListener("pointerdown", (ev) => { ev.preventDefault(); marioneta && marioneta.presionar(a.id); });
+    for (const evn of ["pointerup", "pointerleave", "pointercancel"]) b.addEventListener(evn, () => marioneta && marioneta.soltar(a.id));
+  } else b.addEventListener("click", () => marioneta && marioneta.presionar(a.id));
+  $("mando-botones").appendChild(b);
+}
+const enCampo = (ev) => ["INPUT", "SELECT", "TEXTAREA"].includes(ev.target.tagName);
+window.addEventListener("keydown", (ev) => {
+  if (!marioneta || imagen !== lienzoMarioneta || enCampo(ev)) return;
+  const id = marioneta.teclaAAccion(ev.key); if (!id) return;
+  ev.preventDefault();
+  if (ev.repeat) return;
+  marioneta.presionar(id);
+});
+window.addEventListener("keyup", (ev) => {
+  if (!marioneta) return;
+  const id = marioneta.teclaAAccion(ev.key); if (id) marioneta.soltar(id);
+});
+window.addEventListener("blur", () => marioneta && ["izquierda", "derecha", "correr", "agacharse"].forEach((a) => marioneta.soltar(a)));

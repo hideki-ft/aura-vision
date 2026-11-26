@@ -104,6 +104,14 @@ def crear_app(motor, token=None, url_red=None):
         c = await request.json()
         return JSONResponse(limpiar(await asyncio.to_thread(motor.comando, c)))
 
+    @app.post("/api/marioneta")
+    async def marioneta(request: Request, t: str = ""):
+        verificar(t)
+        try:
+            return JSONResponse(motor.recibir_marioneta(await request.json()))
+        except Exception as e:
+            return JSONResponse({"ok": False, "mensaje": str(e)}, status_code=400)
+
     @app.post("/api/medido")
     async def medido(request: Request, t: str = ""):
         verificar(t)

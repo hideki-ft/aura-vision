@@ -117,38 +117,49 @@ class FuenteVideo:
 
 
 class FuenteSintetica:
-    """Persona sintética (sin cámara ni modelos): entrega la imagen y los puntos clave ya calculados."""
+    """Persona sintética (sin cámara ni modelos): entrega la imagen y los puntos clave ya calculados.
 
-    def __init__(self):
+    Por defecto reproduce una rutina automática. Si la interfaz web envía puntos de la "marioneta"
+    (la persona que se mueve con el teclado, ``/api/marioneta``), se usan esos mientras sigan llegando.
+    """
+
+    def __init__(self, buzon=None):
         from .sintetico import a_pixeles, rutina_demo
         self.esc = rutina_demo()
         self.T, self.K, self.C, self.B = a_pixeles(self.esc, ruido_px=0.8)
         self.fps = self.esc.fps
         self.t_inicio = time.monotonic()
+        self.buzon = buzon if buzon is not None else {}
         self.descripcion = "persona sintética"
+
+    def _marioneta_activa(self):
+        return self.buzon.get("t") is not None and time.monotonic() - self.buzon["t"] < 1.0
 
     def leer(self):
         from .sintetico import dibujar_figura
+        if self._marioneta_activa():
+            visto = self.buzon.get("n", 0)
+            fin = time.monotonic() + 0.1
+            while self.buzon.get("n", 0) == visto and time.monotonic() < fin:   # esperar el siguiente cuadro
+                time.sleep(0.005)
+            k, s, b = self.buzon["datos"]
+            return True, dibujar_figura(k), time.monotonic() - self.t_inicio, (k, s, b)
         tr = time.monotonic() - self.t_inicio
-        i = int(tr * self.fps)
-        if i >= len(self.T):
-            self.t_inicio = time.monotonic()
-            i = 0
-        time.sleep(max(0.0, (i + 1) / self.fps - (time.monotonic() - self.t_inicio)))
-        vuelta = int(tr // (len(self.T) / self.fps))
-        t = vuelta * len(self.T) / self.fps + self.T[i]
-        return True, dibujar_figura(self.K[i]), t, (self.K[i], self.C[i], self.B[i])
+        dur = len(self.T) / self.fps
+        i = int((tr % dur) * self.fps)
+        time.sleep(max(0.0, (i + 1) / self.fps - (tr % dur)))
+        return True, dibujar_figura(self.K[i]), time.monotonic() - self.t_inicio, (self.K[i], self.C[i], self.B[i])
 
     def cerrar(self):
         pass
 
 
-def crear_fuente(desc, cfg):
+def crear_fuente(desc, cfg, buzon=None):
     tipo = desc.get("tipo", "camara")
     if tipo == "video":
         return FuenteVideo(desc["valor"], cfg["fuente"].get("repetir_video", True))
     if tipo == "sintetico":
-        return FuenteSintetica()
+        return FuenteSintetica(buzon)
     return FuenteCamara(desc.get("valor", cfg["fuente"]["camara"]), cfg["fuente"]["ancho"], cfg["fuente"]["alto"])
 
 
@@ -174,6 +185,11 @@ class Motor:
         self.clasificador = self._nuevo_clasificador()
         self.wifi = SimuladorWifi(cfg["wifi"])
         self.calibracion = Calibracion(cfg["calibracion"], cfg["wifi"])
+        self.buzon_marioneta = {}
+        if fuente.get("tipo") == "sintetico" and not self.calibracion.calibrada:
+            # geometría conocida de la persona sintética (250 px/m, suelo en y = 650): calibración automática del piso
+            self.calibracion.fijar_punto("A", 250.0, 650.0)
+            self.calibracion.fijar_punto("B", 1030.0, 650.0)
         self.gcn = None
         if cfg.get("gcn", {}).get("activado"):
             try:
@@ -202,7 +218,7 @@ class Motor:
 
     # ------------------------------------------------------------------ ciclo de vida
     def iniciar(self):
-        self.fuente = crear_fuente(self.fuente_desc, self.cfg)   # primero la cámara/video: si falla, avisa rápido
+        self.fuente = crear_fuente(self.fuente_desc, self.cfg, self.buzon_marioneta)  # primero la fuente: si falla, avisa rápido
         if self.fuente_desc.get("tipo") != "sintetico" and self.estimador is None:
             from .vision.pose import EstimadorPose
             print("Cargando modelos de pose (la primera vez se descargan, ~70 MB)...")
@@ -495,6 +511,14 @@ class Motor:
         vieja.cerrar()
         self.clasificador.reiniciar()
         return {"ok": True, "mensaje": f"Fuente: {nueva.descripcion}"}
+
+    def recibir_marioneta(self, d):
+        """Puntos de la marioneta enviados por la interfaz (persona sintética controlada con el teclado)."""
+        k = np.asarray(d["kps"], float).reshape(17, 2)
+        s = np.asarray(d["scores"], float).reshape(17)
+        b = np.asarray(d["caja"], float).reshape(4)
+        self.buzon_marioneta.update(t=time.monotonic(), datos=(k, s, b), n=self.buzon_marioneta.get("n", 0) + 1)
+        return {"ok": True}
 
     def cargar_medido(self, datos, nombre="maqueta.csv"):
         m = cargar_csv_medido(datos, escala=float(self.cfg["wifi"].get("escala_V_medido", 1.0)), nombre=nombre)

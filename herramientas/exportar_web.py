@@ -3,7 +3,7 @@
     python herramientas/exportar_web.py
 
 * web/datos/config.json         ← config.yaml (mismos umbrales que la app de escritorio)
-* web/datos/rutina_sintetica.json ← la persona sintética (para "Probar sin cámara")
+* aura/ui/static/marioneta.js     ← copia de web/js/marioneta.js (la persona controlable, para la app de escritorio)
 * web/tests/casos.json           ← casos de prueba para comprobar que el JavaScript da lo mismo que Python
 * web/js/dibujo.js               ← los 6 paneles, copiados de aura/ui/static/app.js (mismo dibujo en ambas versiones)
 """
@@ -18,7 +18,7 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RAIZ)
 
 from aura.config import cargar_config  # noqa: E402
-from aura.sintetico import Escena, a_pixeles, rutina_demo  # noqa: E402
+from aura.sintetico import Escena, a_pixeles  # noqa: E402
 
 
 def _guardar(ruta, datos):
@@ -57,7 +57,9 @@ def main():
     exportar_dibujo()
     cfg = cargar_config()
     _guardar("web/datos/config.json", cfg)
-    _guardar("web/datos/rutina_sintetica.json", secuencia(rutina_demo(), ruido=0.8))
+    import shutil
+    shutil.copyfile(os.path.join(RAIZ, "web/js/marioneta.js"), os.path.join(RAIZ, "aura/ui/static/marioneta.js"))
+    print("copiado web/js/marioneta.js -> aura/ui/static/marioneta.js")
     # Casos para comparar JavaScript con Python
     from aura.vision.clasificador import ClasificadorEstados
     from aura.vision.one_euro import OneEuroFilter

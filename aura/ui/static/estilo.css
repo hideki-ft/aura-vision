@@ -65,3 +65,15 @@ footer { color: var(--tenue); font-size: .8rem; padding: 6px 16px 16px; }
   main { grid-template-columns: 1fr; grid-template-areas: "video" "fisica" "planta" "v" "esp" "linea" "ctrl"; }
   .etiqueta { font-size: 1.6rem; }
 }
+
+/* ---- mando de la marioneta ---- */
+.mando { margin-top: 10px; border-top: 1px solid var(--borde); padding-top: 8px; }
+.mando-titulo { font-weight: 700; margin-bottom: 8px; color: var(--acento); }
+.mando-botones { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.tecla { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 7px 9px; text-align: left;
+  user-select: none; -webkit-user-select: none; touch-action: none; border-radius: 8px; }
+.tecla kbd { font: 700 .95rem ui-monospace, monospace; background: #0b0f14; border: 1px solid #3a4a60; border-bottom-width: 3px;
+  border-radius: 5px; padding: 1px 7px; color: #fff; }
+.tecla .nom { font-size: .85rem; color: var(--texto); }
+.tecla .det { font-size: .72rem; color: var(--tenue); }
+.tecla.activa { border-color: var(--acento); background: #0b4a5e; }

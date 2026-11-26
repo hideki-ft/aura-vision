@@ -17,3 +17,10 @@ def test_config_web_sincronizada():
 def test_modelos_web_presentes():
     for m in ("yolox_tiny.onnx", "rtmpose_s.onnx", "rtmpose_m.onnx"):
         assert os.path.getsize(os.path.join(RAIZ, "web", "modelos", m)) > 1e6
+
+
+def test_marioneta_igual_en_web_y_escritorio():
+    """La marioneta es un solo archivo; la copia de escritorio la genera herramientas/exportar_web.py."""
+    with open(os.path.join(RAIZ, "web", "js", "marioneta.js"), encoding="utf-8") as a, \
+            open(os.path.join(RAIZ, "aura", "ui", "static", "marioneta.js"), encoding="utf-8") as b:
+        assert a.read() == b.read(), "Ejecuta: python herramientas/exportar_web.py"

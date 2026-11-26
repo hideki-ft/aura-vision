@@ -128,3 +128,23 @@ def test_motor_detecta_la_caida_de_la_rutina_sintetica():
     assert [a["mensaje"] for a in m.alertas][:2] == ["POSIBLE CAÍDA", "sigue en el suelo tras 30 s"]
     for e in ("de_pie", "caminando", "saltando", "sentado", "caida", "en_el_suelo"):
         assert e in estados, e
+
+
+def test_marioneta_toma_el_control_de_la_persona_sintetica():
+    """Los puntos enviados a /api/marioneta reemplazan a la rutina automática mientras sigan llegando."""
+    from aura.sintetico import Escena, a_pixeles
+    cfg = cargar_config()
+    m = Motor(cfg, {"tipo": "sintetico"})
+    m.iniciar()
+    try:
+        app = crear_app(m, token="k")
+        T, K, C, B = a_pixeles(Escena().de_pie(2).caer().tumbado(3))
+        with TestClient(app) as c:
+            for i in range(len(T)):
+                r = c.post("/api/marioneta?t=k", json={"kps": K[i].tolist(), "scores": C[i].tolist(), "caja": B[i].tolist()})
+                assert r.json()["ok"]
+                time.sleep(1 / 30)
+        assert any(e["tipo"] == "caida" for e in m.eventos), "la caída enviada por la marioneta no se detectó"
+        assert m.calibracion.calibrada                     # calibración automática del piso en modo sintético
+    finally:
+        m.detener()

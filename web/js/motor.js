@@ -33,6 +33,9 @@ export class MotorWeb {
   // fuente: { tipo: "camara"|"video"|"sintetico", video?: HTMLVideoElement, rutina?: {...}, estimador?: EstimadorPoseWeb }
   async iniciar(fuente) {
     this.fuente = fuente; this.activo = true; this.t0 = performance.now() / 1000;
+    if (fuente.tipo === "sintetico" && !this.calibracion.calibrada) {   // geometría conocida: calibración automática del piso
+      const m = fuente.marioneta; this.calibracion.fijar("A", 1.0 * m.ppm, m.sueloPx); this.calibracion.fijar("B", (m.ancho / m.ppm - 1.0) * m.ppm, m.sueloPx);
+    }
     let tPrev = null;
     while (this.activo) {
       try {
@@ -49,12 +52,11 @@ export class MotorWeb {
 
   async _siguienteCuadro() {
     const f = this.fuente;
-    if (f.tipo === "sintetico") {
-      const r = f.rutina, dur = r.t.length / r.fps, tr = performance.now() / 1000 - this.t0;
-      const i = Math.floor((tr % dur) * r.fps), vuelta = Math.floor(tr / dur);
-      await new Promise((res) => setTimeout(res, Math.max(0, ((i + 1) / r.fps - (tr % dur)) * 1000)));
-      this.tam = [1280, 720];
-      return { t: vuelta * dur + r.t[i], extra: { kps: r.kps[i], scores: r.scores[i], caja: r.cajas[i] } };
+    if (f.tipo === "sintetico") {                // marioneta controlada con el teclado, ~30 cuadros/s
+      await new Promise((res) => setTimeout(res, 33));
+      const t = performance.now() / 1000 - this.t0, dt = this._tMar === undefined ? 1 / 30 : t - this._tMar;
+      this._tMar = t; this.tam = [f.marioneta.ancho, f.marioneta.alto];
+      return { t, extra: f.marioneta.actualizar(dt) };
     }
     const v = f.video;
     await new Promise((res) => (v.requestVideoFrameCallback ? v.requestVideoFrameCallback(() => res()) : requestAnimationFrame(() => res())));
