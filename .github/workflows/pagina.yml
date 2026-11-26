@@ -1,6 +1,7 @@
 name: pagina-web
 
 # Publica la carpeta web/ en GitHub Pages: https://hideki-ft.github.io/aura-vision/
+# (Settings → Pages → Source: "GitHub Actions")
 on:
   push:
     branches: [main]
@@ -14,13 +15,10 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  publicar:
-    environment:
-      name: github-pages
-      url: ${{ steps.despliegue.outputs.page_url }}
+  empaquetar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,5 +26,13 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: web
+
+  publicar:
+    needs: empaquetar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
       - id: despliegue
         uses: actions/deploy-pages@v4
