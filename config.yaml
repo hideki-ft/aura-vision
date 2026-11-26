@@ -1,0 +1,184 @@
+# =============================================================================
+#  AURA Vision · configuración
+#  Todas las cifras se pueden cambiar aquí. Los comentarios explican qué hace
+#  cada una. Las distancias en "H" se miden en alturas de persona
+#  (1 H = la estatura de la persona tal como se ve en la imagen).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Fuente de video
+# -----------------------------------------------------------------------------
+fuente:
+  camara: 0                # índice de la cámara (0 = la integrada; prueba 1, 2... si tienes una USB)
+  ancho: 1280              # resolución pedida a la cámara (la cámara puede dar otra)
+  alto: 720
+  video_demo: null         # ruta a un .mp4 para el modo demo (o usa: python app.py --demo video.mp4)
+  repetir_video: true      # al terminar el video, vuelve a empezar
+
+# -----------------------------------------------------------------------------
+# Estimación de pose (rtmlib + ONNX Runtime, sin entrenamiento)
+# -----------------------------------------------------------------------------
+pose:
+  modo: balanced           # lightweight | balanced | performance (ver tabla de modos abajo)
+  dispositivo: auto        # auto | cpu | cuda   (auto usa la GPU si ONNX Runtime la detecta)
+  modelo_pose: null        # null = el del modo (RTMPose-m en balanced); o fuerza rtmpose-s | rtmpose-m | rtmpose-l
+  umbral_deteccion: 0.45   # confianza mínima del detector de personas
+  umbral_punto: 0.30       # confianza mínima de un punto clave para usarlo
+  # Modos (CPU de 4 núcleos, medidos): YOLOX-tiny 31 ms, YOLOX-m 198 ms, RTMPose-m 18 ms por persona.
+  modos:
+    # max_personas   = a cuántas personas se les calcula el esqueleto (la objetivo primero)
+    # pose_otros_cada = el esqueleto de las personas NO objetivo se recalcula cada N cuadros (ahorra CPU)
+    lightweight: {detector: yolox-tiny, modelo_pose: rtmpose-s, detectar_cada: 6, max_personas: 1, pose_otros_cada: 1}
+    balanced:    {detector: yolox-tiny, modelo_pose: rtmpose-m, detectar_cada: 3, max_personas: 2, pose_otros_cada: 2}
+    performance: {detector: yolox-m,    modelo_pose: rtmpose-m, detectar_cada: 2, max_personas: 4, pose_otros_cada: 1}   # pensado para GPU
+
+# -----------------------------------------------------------------------------
+# Seguimiento (un ID por persona) — ByteTrack ligero con filtro de Kalman
+# -----------------------------------------------------------------------------
+seguimiento:
+  umbral_alto: 0.5         # detecciones "seguras" (primera asociación)
+  umbral_bajo: 0.1         # detecciones débiles (segunda asociación, recupera personas tapadas)
+  iou_minimo: 0.2          # solapamiento mínimo caja-predicción para asociar
+  max_perdido_s: 1.5       # si un ID no se ve durante este tiempo, se elimina
+  cuadros_para_confirmar: 2
+
+# -----------------------------------------------------------------------------
+# Suavizado de puntos clave: One Euro Filter
+#   min_cutoff bajo  -> menos temblor cuando la persona está quieta (pero más retraso)
+#   beta alto        -> menos retraso cuando la persona se mueve rápido
+# -----------------------------------------------------------------------------
+one_euro:
+  min_cutoff: 1.2          # Hz
+  beta: 0.05
+  d_cutoff: 1.0            # Hz (filtro de la derivada)
+
+# -----------------------------------------------------------------------------
+# Persona y conversión a metros
+# -----------------------------------------------------------------------------
+persona:
+  estatura_m: 1.70         # estatura de la persona objetivo (se puede cambiar en la interfaz)
+
+# -----------------------------------------------------------------------------
+# Clasificación por reglas físicas (sin entrenamiento)
+# Cada regla es una "rampa": [a, b] significa 0 en a y 1 en b.
+# h = altura de la cadera en alturas de persona (de pie ≈ 0.53, silla ≈ 0.28, suelo ≈ 0.06)
+# -----------------------------------------------------------------------------
+clasificacion:
+  erguido_cadera: [0.36, 0.44]      # cadera por encima de esto => erguido
+  erguido_torso_deg: [40, 25]       # torso más inclinado que 40° => no erguido
+  caminar_vel_H_s: [0.12, 0.25]     # vel. horizontal (alturas/s): 0.25 H/s ≈ 0.43 m/s => caminando
+  sentado_cadera_baja: [0.12, 0.20]
+  sentado_cadera_alta: [0.44, 0.36]
+  sentado_torso_deg: [55, 35]
+  sentado_rodilla_deg: [155, 120]   # rodilla doblada (180° = recta)
+  suelo_cadera: [0.20, 0.12]        # cadera muy baja => en el suelo
+  suelo_cadera_tumbado: [0.32, 0.22]
+  suelo_torso_deg: [45, 65]         # torso casi horizontal
+  suelo_aspecto: [1.2, 0.8]         # caja más ancha que alta
+  puntaje_min: 0.40                 # si la mejor regla no llega => incierto
+  margen_min: 0.15                  # si dos reglas casi empatan => incierto
+  conf_kp_incierto: 0.35
+  conf_kp_buena: 0.70
+  ventana_mediana_s: 0.2            # mediana de las características (quita picos)
+  ventana_cinematica_s: 0.3         # ajuste de velocidad/aceleración (causal)
+  ventana_moda_s: 0.4               # etiqueta más votada en esta ventana
+  ausente_tras_s: 0.5               # sin ver a la persona más de esto => ausente
+  duracion_min_s:                   # un estado nuevo debe mantenerse esto antes de mostrarse
+    de_pie: 0.4
+    caminando: 0.4
+    sentado: 0.6
+    en_el_suelo: 0.6
+    incierto: 0.5
+    ausente: 0.3
+  # Caída: descenso rápido (< 1 s) de la cadera que termina en el suelo
+  caida_dur_max_s: 1.0
+  caida_bajada_min_H: 0.25          # la cadera baja al menos 0.25 alturas (~42 cm)
+  caida_vel_min_H_s: 0.9            # velocidad de bajada pico (~1.5 m/s)
+  caida_cadera_final: 0.20
+  caida_confirmar_s: 1.0            # luego ~1 s en el suelo para confirmar
+  caida_confirmar_frac: 0.6
+  caida_mostrar_s: 3.0              # la etiqueta "caida" se muestra estos segundos
+  # Salto
+  salto_delta_H: 0.05
+  salto_vel_min_H_s: 0.6
+  vuelo_delta_H: 0.025
+  salto_mantener_s: 0.3
+
+# -----------------------------------------------------------------------------
+# Alertas de bienestar (NO son diagnósticos; la app nunca llama a emergencias)
+# -----------------------------------------------------------------------------
+alertas:
+  - {segundos: 0,   mensaje: "POSIBLE CAÍDA"}
+  - {segundos: 30,  mensaje: "sigue en el suelo tras 30 s"}
+  - {segundos: 120, mensaje: "sigue en el suelo tras 2 min"}
+
+# -----------------------------------------------------------------------------
+# Wi-Fi virtual (TODO es CALCULADO a partir de la cámara; no hay ESP32)
+# Coordenadas de la habitación en metros, vista de planta: x a lo ancho, y a lo largo.
+# -----------------------------------------------------------------------------
+wifi:
+  habitacion: {ancho_m: 4.0, largo_m: 3.0}
+  router_m: [0.0, 1.5]               # sobre la pared izquierda (x = 0)
+  receptor_m: [2.0, 1.5]             # a 2 m del router
+  banda_ghz: 2.4                     # 2.4 (canal 1: 2.412 GHz) o 5.18 (canal 36)
+  frecuencias_ghz: {"2.4": 2.412, "5.18": 5.18}
+  subportadoras: 26
+  espaciado_khz: 312.5
+  muestras_por_s: 100
+  # Coeficientes de reflexión de Fresnel a incidencia normal: Γ = (1 − √εr) / (1 + √εr)
+  # El signo negativo es la inversión de fase de 180° (de un medio menos denso a uno más denso).
+  gamma_pared: -0.382                # concreto, εr ≈ 5
+  gamma_cuerpo: -0.763               # piel/cuerpo, εr ≈ 55
+  contraste_cuerpo: 1.0              # 0..1: multiplica |Γ_cuerpo| (0 = persona invisible para el Wi-Fi)
+  altura_antenas_m: null            # null = modelo 2D del informe (planta). Un número (p. ej. 1.0) activa el
+                                     # modelo 3D: el camino del cuerpo usa la altura del tronco, y una caída
+                                     # (movimiento vertical) sí cambia V. Ver README.
+  radio_cuerpo_m: 0.20               # el cuerpo bloquea el camino directo si pasa a menos de esto
+  transmision_bloqueo: 0.35          # fracción de amplitud del camino directo que atraviesa el cuerpo
+  ruido_sigma: 0.03                  # ruido complejo gaussiano (misma unidad que H; directo a 2 m ≈ 0.5)
+  escala_V: auto                     # auto = 5 / ruido_sigma (V quieto ≈ 5); o un número
+  escala_V_medido: 1.0               # escala para CSV reales con subportadoras (si traen columna V, se usa tal cual)
+  umbral_V: 10                       # V > umbral => "movimiento Wi-Fi (calculado)"
+  ventana_sigma_s: 1.0               # σ_k se calcula en ventanas de 1 s
+  ventana_welch_s: 4.0               # espectro con los últimos 4 s
+  banda_energia_hz: [0.5, 20.0]
+  historial_s: 30                    # segundos de V(t) en la gráfica
+
+# Mapeo de la cámara a la habitación (calibración simple de 2 puntos del piso).
+# El usuario marca en el video dos puntos del piso por donde camina la persona;
+# aquí se dice a qué posición de la habitación (m) corresponde cada uno.
+# La persona se supone sobre la recta A-B (vista lateral).
+calibracion:
+  punto_A_m: [1.0, 0.4]
+  punto_B_m: [1.0, 2.6]              # por defecto la recta cruza el camino directo router-receptor
+  pixeles_A: null                    # se rellenan al calibrar en la interfaz ([x, y] en píxeles)
+  pixeles_B: null
+
+# -----------------------------------------------------------------------------
+# Clasificador opcional de esqueleto preentrenado (ST-GCN++ en NTU RGB+D 120)
+# Desactivado por defecto. Ver README, sección "Opcional: ST-GCN++".
+# -----------------------------------------------------------------------------
+gcn:
+  activado: false
+  modelo_onnx: modelos/stgcnpp_ntu120_2d.onnx
+  cuadros: 100                       # longitud de la secuencia que espera el modelo
+  cada_n_cuadros: 10
+  clases_interes:                    # índices (desde 0) de NTU-120 que se muestran
+    7: "sentarse"
+    8: "levantarse"
+    26: "saltar"
+    41: "tambalearse"
+    42: "caerse"
+
+# -----------------------------------------------------------------------------
+# Interfaz y sesiones
+# -----------------------------------------------------------------------------
+interfaz:
+  puerto: 8000
+  abrir_navegador: true
+  permitir_red_local: true           # true = se puede abrir desde el celular (misma red Wi-Fi), con token
+  calidad_jpeg: 70
+  ancho_video: 640                   # ancho del video enviado al navegador
+  privacidad: false                  # true = no se envía la imagen, solo el esqueleto sobre negro
+  fps_envio: 15
+carpeta_sesiones: sesiones

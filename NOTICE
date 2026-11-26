@@ -1,0 +1,11 @@
+AURA Vision
+Copyright 2026 Equipo AURA Vision
+
+Este producto se distribuye bajo la Licencia Apache 2.0 (ver LICENSE).
+
+Componentes de terceros (se instalan como dependencias, no se incluyen en este repositorio):
+- rtmlib (Apache-2.0) — https://github.com/Tau-J/rtmlib
+- Modelos RTMPose y YOLOX de OpenMMLab (Apache-2.0), descargados en tiempo de ejecución
+- ONNX Runtime (MIT), OpenCV (Apache-2.0), NumPy/SciPy/pandas (BSD), Matplotlib (licencia PSF/BSD),
+  FastAPI (MIT), Uvicorn (BSD), PyYAML (MIT), qrcode (BSD)
+No se usa Ultralytics/YOLO (AGPL-3.0).

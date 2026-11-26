@@ -1,0 +1,31 @@
+# Videos e imágenes (¡no subir grabaciones de personas!)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# Sesiones grabadas, reportes y datos
+sesiones/
+datos/
+*.csv
+!tests/**/*.csv
+
+# Modelos
+modelos/
+*.onnx
+*.pt
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

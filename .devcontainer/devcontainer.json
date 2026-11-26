@@ -1,0 +1,10 @@
+{
+  "name": "AURA Vision",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y libgl1 libglib2.0-0 && pip install -r requirements.txt",
+  "forwardPorts": [8000],
+  "portsAttributes": {
+    "8000": { "label": "AURA Vision", "onAutoForward": "openBrowser" }
+  },
+  "postAttachCommand": "echo 'En Codespaces no hay cámara. Ejecuta:  python app.py --sintetico --no-navegador   y abre el puerto 8000 añadiendo ?t=<token> a la dirección.'"
+}

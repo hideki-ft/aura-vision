@@ -1,0 +1,3 @@
+# Los .bat de Windows se guardan ya con fin de línea CRLF (así funcionan también al descargar el ZIP)
+*.bat -text
+*.sh  text eol=lf
