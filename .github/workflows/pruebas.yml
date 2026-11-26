@@ -26,5 +26,7 @@ jobs:
         run: python -m pip install -r requirements.txt
       - name: Tests (sin cámara ni modelos)
         run: python -m pytest -q
+      - name: Versión web = versión Python (Node)
+        run: node --test web/tests/equivalencia.test.mjs
       - name: La app arranca (modo sintético, 8 s)
         run: python app.py --sintetico --no-navegador --segundos 8

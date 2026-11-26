@@ -6,14 +6,15 @@
 *.webm
 
 # Sesiones grabadas, reportes y datos
-sesiones/
-datos/
+/sesiones/
+/datos/
 *.csv
 !tests/**/*.csv
 
 # Modelos
-modelos/
+/modelos/
 *.onnx
+!web/modelos/*.onnx
 *.pt
 
 # Python

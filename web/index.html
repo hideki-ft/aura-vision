@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AURA · Visión + Wi-Fi virtual</title>
+<meta name="description" content="Reconocimiento de actividades en tiempo real con la cámara y un Wi-Fi virtual calculado con física de ondas. Todo corre en tu navegador.">
+<link rel="stylesheet" href="estilo.css">
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<!-- Pantalla de inicio -->
+<div id="inicio" class="inicio">
+  <div class="caja-inicio">
+    <h1>AURA <span class="sep">·</span> Visión + Wi-Fi virtual</h1>
+    <p>Una cámara reconoce en tiempo real qué hace una persona (de pie, sentada, caminando, saltando, en el suelo,
+      posible caída) y un <b>Wi-Fi virtual</b> calcula con física de ondas lo que mediría un sensor Wi-Fi (ESP32).</p>
+    <div class="opciones-inicio">
+      <label>Calidad
+        <select id="in-modelo">
+          <option value="rapido">Rápida (RTMPose-s, 22 MB) — celulares</option>
+          <option value="preciso">Precisa (RTMPose-m, 54 MB) — laptops</option>
+        </select></label>
+      <label>Cámara
+        <select id="in-facing"><option value="user">Delantera (selfi)</option><option value="environment">Trasera</option></select></label>
+      <label>Procesador
+        <select id="in-proc"><option value="auto">Automático (GPU si hay)</option><option value="cpu">Solo CPU</option></select></label>
+      <label>Estatura (m) <input id="in-estatura-ini" type="number" min="0.8" max="2.3" step="0.01" value="1.70"></label>
+    </div>
+    <div class="botones-inicio">
+      <button id="bt-ini-camara" class="primario">📷 Empezar con mi cámara</button>
+      <label class="boton-archivo">🎞️ Usar un video de mi dispositivo<input id="in-video" type="file" accept="video/*"></label>
+      <button id="bt-ini-sint">🧍 Probar sin cámara (persona sintética)</button>
+    </div>
+    <div id="progreso"></div>
+    <p class="nota-priv">🔒 <b>Todo corre en tu dispositivo.</b> Las imágenes de la cámara nunca salen de tu navegador
+      (no hay servidor). La primera vez se descargan los modelos (~40-75 MB). Las alertas son de bienestar, no diagnósticos;
+      la app nunca llama a emergencias. Para probar caídas, simúlalas sobre un colchón.
+      <a href="https://github.com/hideki-ft/aura-vision" target="_blank">Código en GitHub</a>.</p>
+  </div>
+</div>
+<video id="video" playsinline muted style="display:none"></video>
+
+<header>
+  <h1>AURA <span class="sep">·</span> Visión + Wi-Fi virtual</h1>
+  <div class="chips">
+    <span id="chip-fuente" class="chip">—</span>
+    <span id="chip-fps" class="chip">— FPS</span>
+    <span id="chip-grab" class="chip oculto">● GRABANDO</span>
+    <span id="chip-con" class="chip bien">en tu navegador</span>
+  </div>
+</header>
+
+<div id="alerta" class="alerta oculto"></div>
+
+<main>
+  <section class="panel p-video">
+    <h2>1 · Cámara y esqueleto <small>(toca una persona para seguirla)</small></h2>
+    <div class="lienzo-video"><canvas id="cv-video" width="640" height="360"></canvas></div>
+    <div class="estado-grande">
+      <div id="etiqueta" class="etiqueta">—</div>
+      <div class="barra"><div id="barra-conf"></div></div>
+      <div id="txt-conf" class="txt-conf">confianza —</div>
+    </div>
+    <div id="msg-calib" class="aviso oculto"></div>
+  </section>
+  <section class="panel p-planta">
+    <h2>2 · Vista de planta <span class="calc">CALCULADO</span></h2>
+    <canvas id="cv-planta" width="460" height="345"></canvas>
+    <div class="leyenda" id="leyenda-caminos"></div>
+  </section>
+  <section class="panel p-fisica">
+    <h2>6 · Física en vivo</h2>
+    <table id="tabla-fisica"></table>
+  </section>
+  <section class="panel p-v">
+    <h2>3 · V(t) Wi-Fi <span class="calc">CALCULADO</span> <span id="tag-medido" class="medido oculto">MEDIDO (maqueta)</span></h2>
+    <canvas id="cv-v" width="640" height="220"></canvas>
+  </section>
+  <section class="panel p-esp">
+    <h2>4 · Espectro de |H| <span class="calc">CALCULADO</span></h2>
+    <canvas id="cv-esp" width="460" height="220"></canvas>
+  </section>
+  <section class="panel p-linea">
+    <h2>5 · Línea de tiempo y alertas <small>(alertas de bienestar, no diagnósticos)</small></h2>
+    <canvas id="cv-linea" width="900" height="70"></canvas>
+    <ul id="lista-alertas"></ul>
+  </section>
+  <section class="panel p-ctrl">
+    <h2>Controles</h2>
+    <div class="ctrl">
+      <label>Cámara <select id="in-camara"><option value="user">Delantera</option><option value="environment">Trasera</option></select></label>
+      <button id="bt-camara">Cambiar cámara</button>
+    </div>
+    <div class="ctrl">
+      <label>Estatura (m) <input id="in-estatura" type="number" min="0.8" max="2.3" step="0.01" value="1.70"></label>
+      <button id="bt-estatura">Aplicar</button>
+    </div>
+    <div class="ctrl">
+      <label>Banda
+        <select id="in-banda"><option value="2.4">2.4 GHz (λ = 0.125 m)</option>
+        <option value="5.18">5.18 GHz (λ = 0.0579 m)</option></select></label>
+    </div>
+    <div class="ctrl">
+      <label>Umbral V <input id="in-umbralv" type="number" step="1" value="10"></label>
+      <label>Caída (H/s) <input id="in-caida" type="number" step="0.1" value="0.9"></label>
+      <label>Caminar (H/s) <input id="in-caminar" type="number" step="0.01" value="0.25"></label>
+      <button id="bt-umbrales">Aplicar umbrales</button>
+    </div>
+    <div class="ctrl">
+      <label>Contraste del cuerpo |Γ| = <b id="txt-gamma">0.763</b>
+        <input id="in-contraste" type="range" min="0" max="1" step="0.01" value="1"></label>
+    </div>
+    <div class="ctrl botones">
+      <button id="bt-calibrar">Calibrar piso (2 toques)</button>
+      <button id="bt-calv">Calibrar V (quieto ≈ 5)</button>
+      <label class="boton-archivo">Cargar CSV real<input id="in-csv" type="file" accept=".csv,text/csv"></label>
+      <button id="bt-grabar" class="rojo">● Grabar sesión</button>
+      <a id="lnk-reporte" class="oculto" target="_blank">Ver reporte</a>
+      <label class="switch"><input id="in-priv" type="checkbox"> Modo privacidad</label>
+      <button id="bt-qr">QR de esta página</button>
+      <button id="bt-salir">⟲ Volver al inicio</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </section>
+</main>
+
+<div id="modal-qr" class="modal oculto">
+  <div class="caja-modal">
+    <h3>Abre AURA en tu celular</h3>
+    <img id="img-qr" alt="Código QR de esta página">
+    <p id="url-qr"></p>
+    <button id="bt-cerrar-qr">Cerrar</button>
+  </div>
+</div>
+
+<footer>Todo lo del panel Wi-Fi es <span class="calc">CALCULADO</span> a partir de la cámara (no hay ESP32).
+Solo los datos cargados desde un CSV real son <span class="medido">MEDIDO (maqueta)</span>.
+Todo se procesa en tu dispositivo. La app nunca llama a emergencias.</footer>
+<script type="module" src="js/ui.js"></script>
+</body>
+</html>

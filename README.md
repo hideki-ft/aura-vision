@@ -4,7 +4,34 @@
 [![Abrir en GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/hideki-ft/aura-vision)
 [![Licencia: Apache 2.0](https://img.shields.io/badge/licencia-Apache%202.0-blue.svg)](LICENSE)
 
-## ▶️ Ejecutarlo directamente desde GitHub
+## 🌐 Pruébalo ahora en el navegador
+
+### **👉 https://hideki-ft.github.io/aura-vision/**
+
+Abre el enlace (en la laptop o en el celular), pulsa **"Empezar con mi cámara"** y acepta el permiso. No hay que
+instalar nada. **Todo corre en tu dispositivo**: los modelos de pose se ejecutan en el navegador con ONNX Runtime
+Web (GPU con WebGPU si está disponible, o CPU con WebAssembly), y **las imágenes de la cámara nunca salen del
+navegador**, porque no hay servidor. También puedes "Usar un video de mi dispositivo" o "Probar sin cámara"
+(persona sintética).
+
+Para el público en clase: proyecta el **QR de esta página** (botón en Controles) y cada persona lo prueba en su
+propio celular, con su cámara. No necesita estar en la misma red Wi-Fi que tu laptop.
+
+| | Versión web (enlace) | App de escritorio (`python app.py`) |
+|---|---|---|
+| Instalación | Ninguna | Python + paquetes |
+| Dónde corre | Navegador de cada visitante | Tu laptop (servidor local) |
+| Pose | YOLOX-tiny + RTMPose-s/m (mismos modelos, mismo pre/posproceso) | Igual |
+| Reglas, One Euro, Wi-Fi virtual | Traducción a JavaScript, verificada contra Python (`web/tests`) | Python |
+| Seguimiento | Simplificado (IoU + cercanía) | ByteTrack con Kalman |
+| Velocidad | Depende del dispositivo: con GPU (WebGPU) fluido; solo CPU, más lento | ≥ 15 FPS en CPU |
+| Grabar sesión | Descarga `sesion.csv` + reporte HTML | Carpeta `sesiones/` |
+| Extras | — | ST-GCN++ opcional, QR para ver la laptop desde el celular |
+
+La primera visita descarga los modelos (~40 MB con calidad "Rápida", ~75 MB con "Precisa"). Usa Wi-Fi, no datos
+móviles.
+
+## ▶️ Ejecutar la app de escritorio desde GitHub
 
 **En tu laptop (para la demostración con el público), Windows:**
 
@@ -518,7 +545,9 @@ aura-vision-app/
 │   ├── vision/             # pose.py, seguimiento.py, one_euro.py, clasificador.py, calibracion.py, esqueleto.py, gcn.py
 │   ├── wifi_virtual/       # canal.py (suma de caminos), simulador.py (100 Hz), metricas.py (V, Welch), medido.py (CSV real)
 │   └── ui/                 # servidor.py (FastAPI + WebSocket) y static/ (HTML, CSS, JS)
-├── herramientas/           # grabar_video_demo.py, descargar_video_prueba.py
+├── web/                    # VERSIÓN WEB (GitHub Pages): index.html, js/ (motor, pose ONNX Runtime Web, reglas, Wi-Fi),
+│                           #   modelos/ (ONNX), datos/ (config.json, rutina sintética), tests/ (equivalencia con Python)
+├── herramientas/           # grabar_video_demo.py, descargar_video_prueba.py, exportar_web.py
 ├── tests/                  # pytest
 └── docs/                   # capturas
 ```
@@ -546,6 +575,13 @@ flowchart LR
 ```bash
 python -m pytest -q
 ```
+
+```bash
+node --test web/tests/equivalencia.test.mjs   # la versión web da lo mismo que la de Python
+```
+
+Si cambias `config.yaml` o `aura/ui/static/app.js`, regenera los datos de la versión web con
+`python herramientas/exportar_web.py`. Un test avisa si se te olvida.
 
 Las 43 pruebas no necesitan cámara ni modelos. Comprueban:
 

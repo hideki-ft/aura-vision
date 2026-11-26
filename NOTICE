@@ -3,6 +3,11 @@ Copyright 2026 Equipo AURA Vision
 
 Este producto se distribuye bajo la Licencia Apache 2.0 (ver LICENSE).
 
+Este repositorio incluye en web/modelos/ los modelos ONNX de OpenMMLab (Apache-2.0), sin modificar:
+- YOLOX-tiny (HumanArt) y RTMPose-s / RTMPose-m (Body7), exportados por el proyecto MMPose/rtmlib.
+  https://github.com/open-mmlab/mmpose  (Licencia Apache 2.0)
+La versión web carga ONNX Runtime Web (MIT) y qrcode-generator (MIT) desde CDN.
+
 Componentes de terceros (se instalan como dependencias, no se incluyen en este repositorio):
 - rtmlib (Apache-2.0) — https://github.com/Tau-J/rtmlib
 - Modelos RTMPose y YOLOX de OpenMMLab (Apache-2.0), descargados en tiempo de ejecución
