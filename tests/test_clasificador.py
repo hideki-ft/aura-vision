@@ -108,3 +108,14 @@ def test_rampa_y_puntajes():
     assert max(P, key=P.get) == "de_pie"
     P = puntajes_posturas(0.06, 88, 170, 0.3, 0.0, CFG["clasificacion"])
     assert max(P, key=P.get) == "en_el_suelo"
+
+
+def test_incierto_explica_el_motivo():
+    """Si no se ven las piernas (persona sentada frente a la laptop), el estado es incierto y dice por qué."""
+    T, K, C, B = a_pixeles(Escena().de_pie(2))
+    C[:, 13:] = 0.0  # sin rodillas ni tobillos
+    cl = ClasificadorEstados(CFG["clasificacion"], CFG["alertas"], 1.70)
+    o = None
+    for i in range(len(T)):
+        o = cl.actualizar(T[i], K[i], C[i], B[i])
+    assert o["estado"] == "incierto" and "piernas" in o["motivo_incierto"]

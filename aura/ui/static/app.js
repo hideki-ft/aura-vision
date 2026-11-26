@@ -279,6 +279,8 @@ function dibujarTodo() {
   $("barra-conf").style.width = `${Math.round(100 * (estado.confianza || 0))}%`;
   $("barra-conf").style.background = COLORES[e] || "#00d4ff";
   $("txt-conf").textContent = `confianza ${Math.round(100 * (estado.confianza || 0))} %`;
+  const mot = $("motivo");
+  if (mot) { mot.textContent = e === "incierto" && estado.motivo_incierto ? `💡 ${estado.motivo_incierto}` : ""; }
   const al = $("alerta");
   if (estado.alerta_activa) { al.textContent = `⚠ ${estado.alerta_activa.toUpperCase()} — alerta de bienestar (no es un diagnóstico)`; al.classList.remove("oculto"); }
   else al.classList.add("oculto");

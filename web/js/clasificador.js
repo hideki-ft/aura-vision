@@ -25,6 +25,15 @@ export function puntajesPosturas(h, torso, rodilla, aspecto, vxAbs, c) {
   };
 }
 
+export function motivoIncierto(piernas, h, s1, s2, confKp, c) {
+  if (!piernas) return "no se ven las piernas: aléjate para que la cámara vea el cuerpo completo";
+  if (confKp < c.conf_kp_incierto) return "puntos del cuerpo poco fiables: mejora la luz o acércate un poco";
+  if (!finito(h)) return "no se pudo medir la altura de la cadera";
+  if (s1 < c.puntaje_min) return "postura no reconocida por las reglas";
+  if (s1 - s2 < c.margen_min) return "dos posturas igual de probables";
+  return null;
+}
+
 export class ClasificadorEstados {
   constructor(cfgClas, alertas = [], estatura = 1.70, umbralPunto = 0.30) {
     this.c = cfgClas;
@@ -127,8 +136,8 @@ export class ClasificadorEstados {
     const s1 = P[orden[0]], s2 = P[orden[1]];
     const fkp = 0.5 + 0.5 * rampa(confKp, c.conf_kp_incierto, c.conf_kp_buena);
     const conf = s1 * Math.sqrt(clip((s1 - s2) / 0.3, 0, 1)) * fkp;
-    const cruda = (!piernas || !finito(hMed) || s1 < c.puntaje_min || (s1 - s2) < c.margen_min || confKp < c.conf_kp_incierto)
-      ? "incierto" : orden[0];
+    const motivo = motivoIncierto(piernas, hMed, s1, s2, confKp, c);
+    const cruda = motivo ? "incierto" : orden[0];
     Object.assign(e, { cruda, conf, P, fkp });
 
     const est = this._estadoEstatico(t, this._moda(t));
@@ -151,6 +160,7 @@ export class ClasificadorEstados {
       h_m: e.h_m, h_rel: hRel, vy, ay, vx, torso, rodilla: rod, aspecto, conf_kp: confKp, H_px: H, m_por_px: mPx,
       suelo_y: suelo, piernas_visibles: piernas, puntajes, eventos, alertas: alertasNuevas,
       alerta_activa: this._alertaActiva(), tiempo_en_suelo: this._tiempoSuelo(t), ultimo_salto: this.ultimoSalto,
+      motivo_incierto: final === "incierto" ? motivo : null,
     };
     return this.salida;
   }

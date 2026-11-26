@@ -57,6 +57,21 @@ def _mediana(valores):
     return float(np.median(v)) if v else np.nan
 
 
+def motivo_incierto(piernas, h, s1, s2, conf_kp, c):
+    """Por qué el cuadro es "incierto" (texto para la interfaz), o None si no lo es."""
+    if not piernas:
+        return "no se ven las piernas: aléjate para que la cámara vea el cuerpo completo"
+    if conf_kp < c["conf_kp_incierto"]:
+        return "puntos del cuerpo poco fiables: mejora la luz o acércate un poco"
+    if h is None or not np.isfinite(h):
+        return "no se pudo medir la altura de la cadera"
+    if s1 < c["puntaje_min"]:
+        return "postura no reconocida por las reglas"
+    if (s1 - s2) < c["margen_min"]:
+        return "dos posturas igual de probables"
+    return None
+
+
 class ClasificadorEstados:
     """Clasificador en línea para UNA persona. Llamar ``actualizar`` en cada cuadro."""
 
@@ -191,12 +206,12 @@ class ClasificadorEstados:
         s1, s2 = P[orden[0]], P[orden[1]]
         fkp = 0.5 + 0.5 * rampa(conf_kp, c["conf_kp_incierto"], c["conf_kp_buena"])
         conf = s1 * np.sqrt(np.clip((s1 - s2) / 0.3, 0, 1)) * fkp
-        if (not piernas or not np.isfinite(h_med) or s1 < c["puntaje_min"] or (s1 - s2) < c["margen_min"]
-                or conf_kp < c["conf_kp_incierto"]):
+        motivo = motivo_incierto(piernas, h_med, s1, s2, conf_kp, c)
+        if motivo:
             cruda = "incierto"
         else:
             cruda = orden[0]
-        e.update(cruda=cruda, conf=float(conf), P=P, fkp=fkp)
+        e.update(cruda=cruda, conf=float(conf), P=P, fkp=fkp, motivo=motivo)
 
         est = self._estado_estatico(t, self._moda(t))
         e["estatico"] = est
@@ -224,6 +239,7 @@ class ClasificadorEstados:
             "piernas_visibles": piernas, "puntajes": {k: round(v, 3) for k, v in P.items()},
             "eventos": eventos, "alertas": alertas_nuevas, "alerta_activa": self._alerta_activa(),
             "tiempo_en_suelo": self._tiempo_suelo(t), "ultimo_salto": self.ultimo_salto,
+            "motivo_incierto": motivo if final == "incierto" else None,
         }
         return self.salida
 

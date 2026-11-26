@@ -413,6 +413,7 @@ class Motor:
                 "t": round(self.t, 2), "fps": round(self.fps, 1), "fuente": self.fuente_desc,
                 "tam": self.tam, "privacidad": self.privacidad, "error": self.error,
                 "estado": est.get("estado"), "confianza": est.get("confianza"),
+                "motivo_incierto": est.get("motivo_incierto"),
                 "fisica": {"h_m": num(est.get("h_m")), "vy": num(est.get("vy")), "ay": num(est.get("ay"), 2),
                            "vx": num(est.get("vx")), "torso": num(est.get("torso"), 1),
                            "m_por_px": num(est.get("m_por_px"), 5), "ultimo_salto": est.get("ultimo_salto"),

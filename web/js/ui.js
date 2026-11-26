@@ -10,7 +10,7 @@ const video = $("video");
 const esMovil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 let cfg = null, motor = null, imagen = null, estimador = null, corriendo = false, urlReporte = null, marioneta = null;
 const lienzoMarioneta = document.createElement("canvas"); lienzoMarioneta.width = 1280; lienzoMarioneta.height = 720;
-$("in-modelo").value = esMovil ? "rapido" : "preciso";
+$("in-modelo").value = "rapido";
 $("in-facing").value = esMovil ? "environment" : "user";
 
 const progreso = (t) => { $("progreso").textContent = t; };

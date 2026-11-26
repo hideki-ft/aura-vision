@@ -232,7 +232,7 @@ export class MotorWeb {
     const e = this.estado, r = (x, d = 3) => (finito(x) ? Math.round(x * 10 ** d) / 10 ** d : null);
     return {
       t: r(this.t, 2), fps: r(this.fps, 1), fuente: { tipo: this.fuente ? this.fuente.tipo : "—" }, tam: this.tam, privacidad: this.privacidad,
-      error: this.error, estado: e.estado, confianza: e.confianza,
+      error: this.error, estado: e.estado, confianza: e.confianza, motivo_incierto: e.motivo_incierto || null,
       fisica: { h_m: r(e.h_m), vy: r(e.vy), ay: r(e.ay, 2), vx: r(e.vx), torso: r(e.torso, 1), m_por_px: r(e.m_por_px, 5),
         ultimo_salto: e.ultimo_salto || null, tiempo_en_suelo: e.tiempo_en_suelo ?? null },
       puntajes: e.puntajes, alerta_activa: e.alerta_activa || null, id_objetivo: this.idObjetivo, personas: this.personas,

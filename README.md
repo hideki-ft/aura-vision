@@ -31,6 +31,24 @@ propio celular, con su cámara. No necesita estar en la misma red Wi-Fi que tu l
 La primera visita descarga los modelos (~40 MB con calidad "Rápida", ~75 MB con "Precisa"). Usa Wi-Fi, no datos
 móviles.
 
+## ☁️ Con la GPU de Google Colab (desde GitHub)
+
+[![Abrir en Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hideki-ft/aura-vision/blob/main/notebooks/aura_colab.ipynb)
+
+Si la página web va lenta en tu dispositivo, abre **`notebooks/aura_colab.ipynb`** con el botón de arriba:
+Colab descarga AURA desde este repositorio y lo ejecuta en su **GPU T4** (el mismo motor que la app de escritorio).
+Tu navegador solo abre la cámara y envía los cuadros; el resultado se dibuja encima del video en vivo. Pasos:
+Entorno de ejecución → **GPU T4** → ejecutar las celdas en orden → aceptar el permiso de cámara. La velocidad la
+limita la conexión a internet (cada cuadro va y vuelve): con buena red, ~5-12 cuadros/s.
+
+## ❓ Si sale "incierto" o va lento
+
+* **"incierto"** casi siempre significa que **no se ven las piernas**: la cámara de la laptop solo ve tu torso.
+  Aléjate 2-3 m (o pon el celular/cámara de lado, a la altura de la cadera) para que se vea **el cuerpo completo**.
+  Debajo de la etiqueta aparece ahora el motivo (💡).
+* **Pocos cuadros por segundo en la página web**: usa la calidad **Rápida**, Chrome o Edge actualizados (para que use
+  la GPU con WebGPU) y cierra otras pestañas. Si aun así va lento, usa **Colab** (arriba) o la **app de escritorio**.
+
 ## 🎮 Simulador: mueve tú a la persona
 
 Sin cámara ("Probar sin cámara" en la web, o `python app.py --sintetico`) aparece una persona en una habitación
@@ -571,6 +589,7 @@ aura-vision-app/
 │   ├── vision/             # pose.py, seguimiento.py, one_euro.py, clasificador.py, calibracion.py, esqueleto.py, gcn.py
 │   ├── wifi_virtual/       # canal.py (suma de caminos), simulador.py (100 Hz), metricas.py (V, Welch), medido.py (CSV real)
 │   └── ui/                 # servidor.py (FastAPI + WebSocket) y static/ (HTML, CSS, JS)
+├── notebooks/aura_colab.ipynb   # AURA en Google Colab (GPU) con la cámara del navegador
 ├── web/                    # VERSIÓN WEB (GitHub Pages): index.html, js/ (motor, pose ONNX Runtime Web, reglas, Wi-Fi),
 │                           #   modelos/ (ONNX), datos/ (config.json, rutina sintética), tests/ (equivalencia con Python)
 ├── herramientas/           # grabar_video_demo.py, descargar_video_prueba.py, exportar_web.py

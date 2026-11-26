@@ -90,3 +90,5 @@ footer { color: var(--tenue); font-size: .8rem; padding: 6px 16px 16px; }
 .tecla .nom { font-size: .85rem; color: var(--texto); }
 .tecla .det { font-size: .72rem; color: var(--tenue); }
 .tecla.activa { border-color: var(--acento); background: #0b4a5e; }
+
+.motivo { min-height: 1.2em; color: #ffd166; font-size: .95rem; margin-top: 4px; }
